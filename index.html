@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Дневник пути</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=PT+Serif:wght@400&display=swap">
+<style>
+/* Тот же набор токенов, что даёт дашборд, — страница src/page.html работает без изменений */
+:root {
+  --font-anthropic-sans: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --font-anthropic-serif: "PT Serif", Georgia, serif;
+  --color-bg: #F2F4F1; --color-panel: #FFFFFF; --color-fg: #1C2420; --color-fg-muted: #5E6B64;
+  --color-border-line: #D6DDD8; --color-ok: #2E7D4F; --color-bad: #B03A2E; --color-warn: #A8661A;
+  --c1: #2E5E47; --c2: #A8661A; --c3: #3D6F8F; --c4: #6A5A8E;
+  --cds-chart-grid: #E3E8E4; --cds-chart-axis: #B9C3BD; --cds-surface-popover: #FFFFFF; --cds-border: #D6DDD8;
+  --cds-shadow-popover: 0 4px 16px rgba(20, 35, 28, .12); --cds-text-secondary: #5E6B64;
+  --cds-gap-xs: 4px; --cds-gap-sm: 8px; --cds-gap-md: 16px; --cds-gap-lg: 28px;
+  --cds-pad-xs: 4px; --cds-pad-sm: 8px; --cds-pad-lg: 20px;
+  --cds-font-size-caption: 13px; --cds-font-size-body: 15px; --cds-font-size-heading: 17px; --cds-font-size-title: 30px;
+  --cds-font-weight-medium: 500; --cds-radius: 12px; --cds-dur-slow: .3s;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #121714; --color-panel: #1A211D; --color-fg: #E4EAE6; --color-fg-muted: #98A69E;
+    --color-border-line: #2C3631; --color-ok: #7FC29C; --color-bad: #E58A7E; --color-warn: #E0A458;
+    --c1: #7FC29C; --c2: #E0A458; --c3: #8CB8D4; --c4: #B7A6DA;
+    --cds-chart-grid: #26302B; --cds-chart-axis: #3A4640; --cds-surface-popover: #222A25; --cds-border: #2C3631;
+    --cds-shadow-popover: 0 4px 16px rgba(0, 0, 0, .4); --cds-text-secondary: #98A69E;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--color-bg); color: var(--color-fg); font: 400 15px/1.55 var(--font-anthropic-sans); }
+#dash-root {
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 56px;
+}
+.dash-skeleton { color: transparent; background: var(--cds-chart-grid); border-radius: 4px; }
+.gate { min-height: 100vh; display: grid; place-items: center; padding: 24px max(16px, env(safe-area-inset-left, 0px)); }
+.gate form { width: min(100%, 360px); display: grid; gap: 14px; background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: 16px; padding: 28px; }
+.gate h1 { font: 400 28px/1.2 var(--font-anthropic-serif); margin: 0; }
+.gate p { margin: 0; color: var(--color-fg-muted); font-size: 14px; }
+.gate input[type=password] { font: inherit; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--color-border-line); background: var(--color-bg); color: var(--color-fg); }
+.gate input[type=password]:focus-visible, .gate button:focus-visible { outline: 2px solid var(--c1); outline-offset: 2px; }
+.gate label.rem { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--color-fg-muted); }
+.gate button { font: 600 15px/1 var(--font-anthropic-sans); padding: 12px; border: 0; border-radius: 10px; background: var(--c1); color: var(--color-bg); cursor: pointer; }
+.gate button:disabled { opacity: .6; cursor: progress; }
+.gate .err { color: var(--color-bad); font-size: 14px; min-height: 1.4em; }
+</style>
+<script>
+// Мини-замена API дашборда: те же dash.data / dash.calc / dash.onData / dash.colors
+window.dash = {
+  _d: {}, _calcs: [], _fns: [],
+  colors: ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)'],
+  data(id) { const ready = id in this._d; return { status: ready ? 'ok' : 'loading', data: ready ? this._d[id] : [], columns: [], meta: [] }; },
+  calc(id, spec) { this._calcs.push({ id, inputs: spec.inputs, fn: spec.fn }); },
+  onData(fn) { this._fns.push(fn); },
+  setLink() {}, params() { return {}; }, setParams() {}, resetParams() {}, refresh() {},
+  run(raw) {
+    this._d = Object.assign({}, raw);
+    this._calcs.forEach(c => { this._d[c.id] = c.fn(...c.inputs.map(i => this._d[i] || [])); });
+    this._fns.forEach(f => f());
+  }
+};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+</head>
+<body>
+<div class="gate" id="gate">
+  <form id="gate-form" autocomplete="on">
+    <h1>Дневник пути</h1>
+    <p>Личная страница. Введи пароль, чтобы открыть.</p>
+    <input type="password" id="pw" name="password" autocomplete="current-password" placeholder="Пароль" required>
+    <label class="rem"><input type="checkbox" id="remember" checked> Запомнить на этом устройстве</label>
+    <button type="submit" id="go">Открыть</button>
+    <div class="err" id="err" role="alert"></div>
+  </form>
+</div>
+<div id="app" hidden><div id="dash-root">
+<style>
+.dp { display: grid; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); max-width: 1100px; margin-inline: auto; }
+.dp-head { display: grid; gap: var(--cds-gap-xs); }
+.dp-title { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; }
+.dp-lead { color: var(--color-fg-muted); font-size: var(--cds-font-size-body); margin: 0; max-width: 70ch; }
+.dp .dp-lead b { font-weight: 600; color: var(--color-fg); }
+.dp-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--cds-gap-md); }
+.dp-tile, .dp-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); min-width: 0; }
+.dp-tile { display: grid; gap: var(--cds-gap-xs); align-content: start; }
+.dp-tile .k { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.dp-tile .v { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.15; }
+.dp-tile .s { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.dp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--cds-gap-md); }
+.dp-card { display: grid; gap: var(--cds-gap-sm); align-content: start; }
+.dp-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+.dp-card .note { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); margin: 0; }
+.dp-chart { position: relative; min-height: 220px; }
+.dp-chart svg { display: block; }
+.dp-empty { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.dp-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); white-space: nowrap; }
+.dp-tip .d { color: var(--cds-text-secondary); }
+.dp-bars { display: grid; gap: var(--cds-gap-md); min-height: 200px; align-content: start; }
+.dp-bar { display: grid; gap: 4px; }
+.dp-bar .row { display: flex; justify-content: space-between; gap: var(--cds-gap-sm); font-size: var(--cds-font-size-body); }
+.dp-bar .row span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dp-bar .sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+.dp-bar .track { height: 10px; border-radius: 5px; background: var(--cds-chart-grid); overflow: hidden; }
+.dp-bar .fill { height: 100%; border-radius: 5px; }
+.dp-tbl-wrap { overflow-x: auto; }
+.dp table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-body); }
+.dp th { text-align: left; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-weight: 500; padding: var(--cds-pad-xs) var(--cds-pad-sm) var(--cds-pad-xs) 0; border-bottom: 1px solid var(--color-border-line); }
+.dp td { padding: var(--cds-pad-sm) var(--cds-pad-sm) var(--cds-pad-sm) 0; border-bottom: 1px solid var(--color-border-line); vertical-align: top; }
+.dp tr:last-child td { border-bottom: 0; }
+.dp .pill { display: inline-block; font-size: var(--cds-font-size-caption); padding: 2px 8px; border-radius: 99px; border: 1px solid var(--color-border-line); white-space: nowrap; }
+.dp .pill.done { color: var(--color-ok); border-color: currentColor; }
+.dp .pill.miss { color: var(--color-bad); border-color: currentColor; }
+.dp .nowrap { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dp .up { color: var(--color-ok); } .dp .down { color: var(--color-bad); }
+[data-dash-source-state=empty] { color: transparent; }
+[data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+</style>
+
+<div class="dp">
+  <header class="dp-head">
+    <h1 class="dp-title" id="top">Дневник пути</h1>
+    <p class="dp-lead" id="lead">
+      Долгов осталось <b data-source="latest" data-field="debt" data-row="0" class="dash-skeleton">—</b>,
+      закрыто <b data-source="latest" data-field="paidShare" data-row="0" class="dash-skeleton">—</b> от стартовой суммы.
+      <span id="lead-life"></span>
+    </p>
+  </header>
+
+  <div class="dp-tiles">
+    <div class="dp-tile">
+      <span class="k">Долгов осталось</span>
+      <span class="v" data-source="latest" data-field="debt" data-row="0">—</span>
+      <span class="s">Старт 23.10.2026: <span data-source="latest" data-field="start" data-row="0">—</span></span>
+    </div>
+    <div class="dp-tile">
+      <span class="k">Закрыто долгов</span>
+      <span class="v" data-source="latest" data-field="paid" data-row="0">—</span>
+      <span class="s" id="paid-note">с начала пути</span>
+    </div>
+    <div class="dp-tile">
+      <span class="k">Оценка жизни, из 10</span>
+      <span class="v" data-source="latest" data-field="life" data-row="0">—</span>
+      <span class="s" id="life-note">среднее по пяти сферам</span>
+    </div>
+    <div class="dp-tile">
+      <span class="k">Разбор</span>
+      <span class="v">№ <span data-source="latest" data-field="n" data-row="0">—</span></span>
+      <span class="s" data-source="latest" data-field="week" data-row="0" id="week-date">—</span>
+    </div>
+  </div>
+
+  <div class="dp-grid">
+    <section class="dp-card" id="life-card">
+      <h2>Линия жизни</h2>
+      <p class="note">Средняя оценка недели по сферам: деньги, работа, здоровье, отношения, настроение</p>
+      <div class="dp-chart" id="life-chart" data-source="lifeweeks"></div>
+    </section>
+    <section class="dp-card" id="debt-card">
+      <h2>Долг тает</h2>
+      <p class="note">Сколько осталось на каждый разбор, без ипотеки</p>
+      <div class="dp-chart" id="debt-chart" data-source="weeks"></div>
+    </section>
+  </div>
+
+  <div class="dp-grid">
+    <section class="dp-card" id="struct-card">
+      <h2>Из чего состоит долг</h2>
+      <p class="note">Полоса — стартовая сумма, заливка — сколько осталось</p>
+      <div class="dp-bars" id="debt-bars" data-source="debts"></div>
+    </section>
+    <section class="dp-card" id="tasks-card">
+      <h2>Задачи недели</h2>
+      <p class="note" id="tasks-week">Три главные задачи, одна всегда про МатКвест</p>
+      <div class="dp-tbl-wrap">
+        <table data-source="tasks" data-row-key="id" id="tasks-table">
+          <thead><tr><th data-field="area">Сфера</th><th data-field="task">Задача</th><th data-field="status">Статус</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section class="dp-card" id="journal">
+    <h2>Журнал разборов</h2>
+    <p class="note">Каждое воскресенье: что сделано и что важно запомнить</p>
+    <div class="dp-tbl-wrap">
+      <table data-source="weeks" data-row-key="week" id="journal-table">
+        <thead><tr><th data-field="week">Дата</th><th data-field="done">Что сделано</th><th data-field="note">Заметки</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script>
+const SPHERES = ['money', 'work', 'health', 'relations', 'mood'];
+const SPHERE_RU = { money: 'Деньги', work: 'Работа', health: 'Здоровье', relations: 'Отношения', mood: 'Настроение' };
+
+dash.calc('lifeweeks', {
+  inputs: ['weeks'],
+  title: 'Оценка жизни по неделям',
+  description: 'Среднее из оценок 1–10 по пяти сферам за каждый разбор; сферы без оценки не учитываются.',
+  fn: (weeks) => weeks.map(w => {
+    const vals = ['money', 'work', 'health', 'relations', 'mood'].map(k => w[k]).filter(v => v !== null && v !== undefined && v !== '').map(Number);
+    return { week: w.week, life: vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10 : null,
+      money: w.money, work: w.work, health: w.health, relations: w.relations, mood: w.mood };
+  })
+});
+
+dash.calc('latest', {
+  inputs: ['weeks', 'debts', 'lifeweeks'],
+  title: 'Последний разбор',
+  description: 'Последняя неделя: остаток долга из структуры долга, доля закрытого и средняя оценка жизни.',
+  fn: (weeks, debts, lifeweeks) => {
+    const ws = weeks.slice().sort((a, b) => a.week < b.week ? -1 : 1);
+    const last = ws[ws.length - 1] || {};
+    const lw = lifeweeks.filter(r => r.life !== null).sort((a, b) => a.week < b.week ? -1 : 1);
+    const start = debts.reduce((s, d) => s + Number(d.start), 0);
+    const left = debts.reduce((s, d) => s + Number(d.left), 0);
+    return [{ week: last.week, n: last.n, start, debt: left, paid: start - left, paidShare: start ? (start - left) / start : 0,
+      life: lw.length ? lw[lw.length - 1].life : null, lifePrev: lw.length > 1 ? lw[lw.length - 2].life : null }];
+  }
+});
+
+const rub = (v) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(v) + ' ₽';
+const pct = (v) => new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 1 }).format(v);
+const ruDate = (s) => new Date(s + 'T00:00:00Z').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+const shortDate = (d) => d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+function failed(el) {
+  clear(el);
+  const w = document.createElement('div');
+  w.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:6px;min-height:inherit;height:100%';
+  const dot = document.createElement('span');
+  dot.style.cssText = 'width:.375rem;height:.375rem;border-radius:50%;background:var(--color-bad)';
+  const t = document.createElement('span');
+  t.textContent = 'Failed to load';
+  t.style.cssText = 'color:var(--color-fg-muted);font-size:var(--cds-font-size-caption)';
+  w.append(dot, t); el.appendChild(w);
+}
+
+function lineChart(el, rows, opts) {
+  clear(el);
+  const width = el.clientWidth || 320, height = 220;
+  const pts = rows.filter(r => r.y !== null && r.y !== undefined).map(r => ({ d: new Date(r.week + 'T00:00:00Z'), y: Number(r.y) }));
+  if (!pts.length) {
+    const p = document.createElement('p'); p.className = 'dp-empty'; p.textContent = opts.empty; el.appendChild(p); return;
+  }
+  const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${width} ${height}`).attr('height', height);
+  const yMax = opts.yMax !== undefined ? opts.yMax : d3.max(pts, p => p.y) * 1.1;
+  const y = d3.scaleLinear([0, yMax], [height - 26, 12]);
+  const ticks = y.ticks(4);
+  const probe = svg.append('text').attr('font-size', 11).text(opts.fmtTick(ticks[ticks.length - 1]));
+  const ml = probe.node().getComputedTextLength() + 10; probe.remove();
+  const ext = d3.extent(pts, p => p.d);
+  const span = ext[0].getTime() === ext[1].getTime() ? [d3.utcDay.offset(ext[0], -7), d3.utcDay.offset(ext[1], 7)] : ext;
+  const endLabelW = 70;
+  const x = d3.scaleUtc(span, [ml, width - endLabelW]);
+  svg.append('g').selectAll('line').data(ticks).join('line')
+    .attr('x1', ml).attr('x2', width - endLabelW).attr('y1', d => y(d)).attr('y2', d => y(d))
+    .attr('stroke', 'var(--cds-chart-grid)').attr('stroke-width', 1);
+  svg.append('g').selectAll('text').data(ticks).join('text')
+    .attr('x', ml - 6).attr('y', d => y(d)).attr('dy', '0.32em').attr('text-anchor', 'end')
+    .attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text(opts.fmtTick);
+  const xt = pts.length > 1 ? x.ticks(Math.min(4, pts.length)) : [pts[0].d];
+  svg.append('g').selectAll('text').data(xt).join('text')
+    .attr('x', d => x(d)).attr('y', height - 6).attr('text-anchor', 'middle')
+    .attr('font-size', 11).attr('fill', 'var(--color-fg-muted)').text(shortDate);
+  const color = opts.color;
+  if (pts.length > 1) {
+    const id = 'g' + Math.random().toString(36).slice(2);
+    const grad = svg.append('defs').append('linearGradient').attr('id', id).attr('x1', 0).attr('x2', 0).attr('y1', 0).attr('y2', 1);
+    [[0, .26], [.25, .16], [.5, .08], [.75, .03], [1, 0]].forEach(([o, a]) => grad.append('stop').attr('offset', o).attr('style', `stop-color:${color};stop-opacity:${a}`));
+    svg.append('path').datum(pts).attr('fill', `url(#${id})`).attr('d', d3.area().x(p => x(p.d)).y0(y(0)).y1(p => y(p.y)));
+    svg.append('path').datum(pts).attr('fill', 'none').attr('stroke', color).attr('stroke-width', 2)
+      .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round').attr('d', d3.line().x(p => x(p.d)).y(p => y(p.y)));
+  }
+  svg.append('g').selectAll('circle').data(pts).join('circle').attr('cx', p => x(p.d)).attr('cy', p => y(p.y))
+    .attr('r', (p, i) => i === pts.length - 1 ? 4 : 2.5).attr('fill', color);
+  const lastP = pts[pts.length - 1];
+  svg.append('text').attr('x', x(lastP.d) + 8).attr('y', y(lastP.y)).attr('dy', '0.32em')
+    .attr('font-size', 12).attr('fill', 'var(--color-fg)').text(opts.fmtEnd(lastP.y));
+  const tip = document.createElement('div'); tip.className = 'dp-tip'; tip.hidden = true; el.appendChild(tip);
+  svg.append('rect').attr('x', ml).attr('y', 0).attr('width', width - endLabelW - ml + 40).attr('height', height).attr('fill', 'transparent')
+    .on('mousemove', (ev) => {
+      const [mx] = d3.pointer(ev);
+      const p = pts.reduce((best, q) => Math.abs(x(q.d) - mx) < Math.abs(x(best.d) - mx) ? q : best, pts[0]);
+      clear(tip);
+      const d = document.createElement('div'); d.className = 'd'; d.textContent = shortDate(p.d);
+      const v = document.createElement('div'); v.textContent = opts.fmtEnd(p.y);
+      tip.append(d, v); tip.hidden = false;
+      const left = Math.min(Math.max(0, x(p.d) * el.clientWidth / width - 40), el.clientWidth - 110);
+      tip.style.left = left + 'px'; tip.style.top = Math.max(0, y(p.y) - 48) + 'px';
+    })
+    .on('mouseleave', () => { tip.hidden = true; });
+}
+
+dash.onData(() => {
+  const L = dash.data('latest');
+  const lifeNote = document.getElementById('lead-life');
+  if (L.status === 'ok' && L.data.length) {
+    const r = L.data[0];
+    document.querySelectorAll('[data-source="latest"]').forEach(el => {
+      el.classList.remove('dash-skeleton');
+      const f = el.dataset.field, v = r[f];
+      if (v === null || v === undefined) { el.textContent = '—'; return; }
+      if (f === 'debt' || f === 'paid' || f === 'start') el.textContent = rub(v);
+      else if (f === 'paidShare') el.textContent = pct(v);
+      else if (f === 'life') el.textContent = String(v).replace('.', ',');
+      else if (f === 'week') el.textContent = ruDate(v);
+      else el.textContent = String(v);
+    });
+    const ln = document.getElementById('life-note');
+    if (r.life === null) {
+      lifeNote.textContent = 'Оценок жизни пока нет: поставь их на разборе.';
+      ln.textContent = 'появится после первой оценки';
+    } else if (r.lifePrev !== null) {
+      const ch = Math.round((r.life - r.lifePrev) * 10) / 10;
+      ln.textContent = (ch > 0 ? '+' : '') + String(ch).replace('.', ',') + ' к прошлой неделе';
+      ln.className = 's ' + (ch > 0 ? 'up' : ch < 0 ? 'down' : '');
+      lifeNote.textContent = ch >= 0 ? 'Жизнь идёт вверх.' : 'Неделя была тяжелее прошлой.';
+    } else {
+      ln.textContent = 'первая оценка'; lifeNote.textContent = '';
+    }
+  } else {
+    document.querySelectorAll('[data-source="latest"]').forEach(el => { el.textContent = '—'; });
+  }
+
+  const LW = dash.data('lifeweeks'), lc = document.getElementById('life-chart');
+  if (LW.status === 'ok') {
+    lineChart(lc, LW.data.map(r => ({ week: r.week, y: r.life })), {
+      color: dash.colors[0], yMax: 10, fmtTick: d => String(d), fmtEnd: v => String(v).replace('.', ',') + ' из 10',
+      empty: 'Линия появится после первой оценки. На воскресном разборе поставь от 1 до 10 каждой сфере: деньги, работа, здоровье, отношения, настроение.'
+    });
+  } else if (LW.status === 'error') failed(lc); else clear(lc);
+
+  const W = dash.data('weeks'), dc = document.getElementById('debt-chart');
+  if (W.status === 'ok') {
+    const rows = W.data.slice().sort((a, b) => a.week < b.week ? -1 : 1);
+    lineChart(dc, rows.map(r => ({ week: r.week, y: r.debt })), {
+      color: dash.colors[1], fmtTick: d => d >= 1000 ? Math.round(d / 1000) + ' тыс' : String(d), fmtEnd: v => Math.round(v / 1000) + ' тыс ₽', empty: ''
+    });
+    const tb = document.querySelector('#journal-table tbody'); clear(tb);
+    rows.slice().reverse().forEach(r => {
+      const tr = document.createElement('tr'); tr.dataset.key = r.week;
+      const a = document.createElement('td'); a.className = 'nowrap'; a.textContent = ruDate(r.week);
+      const b = document.createElement('td'); b.textContent = r.done || '';
+      const c = document.createElement('td'); c.textContent = r.note || '';
+      tr.append(a, b, c); tb.appendChild(tr);
+    });
+  } else if (W.status === 'error') failed(dc); else clear(dc);
+
+  const D = dash.data('debts'), bars = document.getElementById('debt-bars');
+  if (D.status === 'ok') {
+    clear(bars);
+    const rows = D.data.slice().sort((a, b) => Number(a.order) - Number(b.order));
+    const max = d3.max(rows, r => Number(r.start)) || 1;
+    rows.forEach((r, i) => {
+      const box = document.createElement('div'); box.className = 'dp-bar';
+      const row = document.createElement('div'); row.className = 'row';
+      const n = document.createElement('span'); n.textContent = r.group;
+      const v = document.createElement('span'); v.textContent = Number(r.left) === 0 ? 'закрыто' : rub(Number(r.left));
+      row.append(n, v);
+      const sub = document.createElement('div'); sub.className = 'sub'; sub.textContent = r.detail;
+      const track = document.createElement('div'); track.className = 'track'; track.style.width = (Number(r.start) / max * 100) + '%';
+      const fill = document.createElement('div'); fill.className = 'fill';
+      fill.style.width = (Number(r.start) ? Number(r.left) / Number(r.start) * 100 : 0) + '%';
+      fill.style.background = dash.colors[i % dash.colors.length];
+      track.appendChild(fill);
+      box.append(row, sub, track); bars.appendChild(box);
+    });
+  } else if (D.status === 'error') failed(bars); else clear(bars);
+
+  const T = dash.data('tasks'), ttb = document.querySelector('#tasks-table tbody');
+  if (T.status === 'ok') {
+    clear(ttb);
+    const lastWeek = d3.max(T.data, r => r.week);
+    document.getElementById('tasks-week').textContent = 'Неделя с ' + ruDate(lastWeek) + '. Одна задача всегда про МатКвест';
+    T.data.filter(r => r.week === lastWeek).forEach(r => {
+      const tr = document.createElement('tr'); tr.dataset.key = r.id;
+      const a = document.createElement('td'); a.className = 'nowrap'; a.textContent = r.area;
+      const b = document.createElement('td'); b.textContent = r.task;
+      const c = document.createElement('td'); const p = document.createElement('span');
+      p.className = 'pill' + (r.status === 'сделано' ? ' done' : r.status === 'не сделано' ? ' miss' : '');
+      p.textContent = r.status; c.appendChild(p);
+      tr.append(a, b, c); ttb.appendChild(tr);
+    });
+  } else clear(ttb);
+});
+</script>
+
+</div></div>
+<script>
+(function () {
+  const PAYLOAD = {"salt":"kttYaYoPjCi7b8ikE6XYmA==","iv":"ommW4W4okdpaWB/i","iter":250000,"data":"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"};
+  const un = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  async function open(pw) {
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: un(PAYLOAD.salt), iterations: PAYLOAD.iter, hash: 'SHA-256' },
+      base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: un(PAYLOAD.iv) }, key, un(PAYLOAD.data));
+    return JSON.parse(new TextDecoder().decode(plain));
+  }
+  function show(raw) {
+    document.getElementById('gate').hidden = true;
+    document.getElementById('app').hidden = false;
+    dash.run(raw);
+    let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => dash._fns.forEach(f => f()), 150); });
+  }
+  const form = document.getElementById('gate-form'), err = document.getElementById('err'), btn = document.getElementById('go');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault(); err.textContent = ''; btn.disabled = true;
+    const pw = document.getElementById('pw').value;
+    try {
+      const raw = await open(pw);
+      try { if (document.getElementById('remember').checked) localStorage.setItem('diary-pw', pw); else localStorage.removeItem('diary-pw'); } catch (_) {}
+      show(raw);
+    } catch (_) {
+      err.textContent = 'Пароль не подошёл. Проверь раскладку и попробуй ещё раз.';
+    } finally { btn.disabled = false; }
+  });
+  let saved = null;
+  try { saved = localStorage.getItem('diary-pw'); } catch (_) {}
+  if (saved) open(saved).then(show).catch(() => { try { localStorage.removeItem('diary-pw'); } catch (_) {} });
+})();
+</script>
+</body>
+</html>
