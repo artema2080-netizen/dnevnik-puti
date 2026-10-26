@@ -72,17 +72,7 @@ window.dash = {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 </head>
 <body>
-<div class="gate" id="gate">
-  <form id="gate-form" autocomplete="on">
-    <h1>Дневник пути</h1>
-    <p>Личная страница. Введи пароль, чтобы открыть.</p>
-    <input type="password" id="pw" name="password" autocomplete="current-password" placeholder="Пароль" required>
-    <label class="rem"><input type="checkbox" id="remember" checked> Запомнить на этом устройстве</label>
-    <button type="submit" id="go">Открыть</button>
-    <div class="err" id="err" role="alert"></div>
-  </form>
-</div>
-<div id="app" hidden><div id="dash-root">
+<div id="app"><div id="dash-root">
 <style>
 .dp { display: grid; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); max-width: 1100px; margin-inline: auto; }
 .dp-head { display: grid; gap: var(--cds-gap-xs); }
@@ -402,36 +392,9 @@ dash.onData(() => {
 </div></div>
 <script>
 (function () {
-  const PAYLOAD = {"salt":"kttYaYoPjCi7b8ikE6XYmA==","iv":"ommW4W4okdpaWB/i","iter":250000,"data":"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"};
-  const un = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-  async function open(pw) {
-    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
-    const key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: un(PAYLOAD.salt), iterations: PAYLOAD.iter, hash: 'SHA-256' },
-      base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
-    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: un(PAYLOAD.iv) }, key, un(PAYLOAD.data));
-    return JSON.parse(new TextDecoder().decode(plain));
-  }
-  function show(raw) {
-    document.getElementById('gate').hidden = true;
-    document.getElementById('app').hidden = false;
-    dash.run(raw);
-    let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => dash._fns.forEach(f => f()), 150); });
-  }
-  const form = document.getElementById('gate-form'), err = document.getElementById('err'), btn = document.getElementById('go');
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault(); err.textContent = ''; btn.disabled = true;
-    const pw = document.getElementById('pw').value;
-    try {
-      const raw = await open(pw);
-      try { if (document.getElementById('remember').checked) localStorage.setItem('diary-pw', pw); else localStorage.removeItem('diary-pw'); } catch (_) {}
-      show(raw);
-    } catch (_) {
-      err.textContent = 'Пароль не подошёл. Проверь раскладку и попробуй ещё раз.';
-    } finally { btn.disabled = false; }
-  });
-  let saved = null;
-  try { saved = localStorage.getItem('diary-pw'); } catch (_) {}
-  if (saved) open(saved).then(show).catch(() => { try { localStorage.removeItem('diary-pw'); } catch (_) {} });
+  const DATA = {"weeks":[{"week":"2026-10-25","n":1,"money":null,"work":null,"health":null,"relations":null,"mood":null,"debt":822224,"income":null,"done":"Собран план до конца 2027. Получена кредитная история. Поставлен самозапрет на кредиты. МатКвест каждый день. Уроки на неделю поездки перенесены, ноябрь без потерь.","note":"Ничего не просрочено. Платежи 26.10 собраны заранее."}],"debts":[{"group":"Личные долги","detail":"друзья и семья","start":55000,"left":55000,"order":1},{"group":"С решением суда","detail":"4 микрозайма","start":78308,"left":78308,"order":2},{"group":"Кредиты по графику","detail":"4 кредита, платятся вовремя","start":439665,"left":439665,"order":3},{"group":"Просрочки без суда","detail":"банк и коллекторы","start":249251,"left":249251,"order":4}],"tasks":[{"id":"2026-10-26-1","week":"2026-10-26","area":"Деньги","task":"Вернуть 20 000 другу и внести платёж 26-го, вернуть 20 000 маме до конца недели","status":"в работе"},{"id":"2026-10-26-2","week":"2026-10-26","area":"МатКвест","task":"Описать финишную черту 31.12 и разложить по неделям","status":"в работе"},{"id":"2026-10-26-3","week":"2026-10-26","area":"Защита","task":"Настроить автоплатежи и сверить долги у приставов","status":"в работе"}]};
+  dash.run(DATA);
+  let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => dash._fns.forEach(f => f()), 150); });
 })();
 </script>
 </body>
