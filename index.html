@@ -156,8 +156,8 @@ window.dash = {
     </section>
     <section class="dp-card" id="debt-card">
       <h2>Долг тает</h2>
-      <p class="note">Сколько осталось на каждый разбор, без ипотеки</p>
-      <div class="dp-chart" id="debt-chart" data-source="weeks"></div>
+      <p class="note">Старт, каждый разбор и остаток на сегодня, без ипотеки</p>
+      <div class="dp-chart" id="debt-chart" data-source="debtline"></div>
     </section>
   </div>
 
@@ -204,6 +204,20 @@ dash.calc('lifeweeks', {
     return { week: w.week, life: vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10 : null,
       money: w.money, work: w.work, health: w.health, relations: w.relations, mood: w.mood };
   })
+});
+
+dash.calc('debtline', {
+  inputs: ['weeks', 'debts'],
+  title: 'Долг по датам',
+  description: 'Стартовая сумма на 23.10.2026, остаток на каждом разборе и текущий остаток по структуре долга на дату её обновления.',
+  fn: (weeks, debts) => {
+    const byDate = new Map();
+    byDate.set('2026-10-23', debts.reduce((s, d) => s + Number(d.start), 0));
+    weeks.forEach(w => { if (w.debt !== null && w.debt !== undefined) byDate.set(w.week, Number(w.debt)); });
+    const asof = debts.reduce((m, d) => d.asof && d.asof > m ? d.asof : m, '');
+    if (asof) byDate.set(asof, debts.reduce((s, d) => s + Number(d.left), 0));
+    return [...byDate].map(([week, debt]) => ({ week, debt })).sort((a, b) => a.week < b.week ? -1 : 1);
+  }
 });
 
 dash.calc('latest', {
@@ -334,12 +348,16 @@ dash.onData(() => {
     });
   } else if (LW.status === 'error') failed(lc); else clear(lc);
 
-  const W = dash.data('weeks'), dc = document.getElementById('debt-chart');
-  if (W.status === 'ok') {
-    const rows = W.data.slice().sort((a, b) => a.week < b.week ? -1 : 1);
-    lineChart(dc, rows.map(r => ({ week: r.week, y: r.debt })), {
+  const DL = dash.data('debtline'), dc = document.getElementById('debt-chart');
+  if (DL.status === 'ok') {
+    lineChart(dc, DL.data.map(r => ({ week: r.week, y: r.debt })), {
       color: dash.colors[1], fmtTick: d => d >= 1000 ? Math.round(d / 1000) + ' тыс' : String(d), fmtEnd: v => Math.round(v / 1000) + ' тыс ₽', empty: ''
     });
+  } else if (DL.status === 'error') failed(dc); else clear(dc);
+
+  const W = dash.data('weeks');
+  if (W.status === 'ok') {
+    const rows = W.data.slice().sort((a, b) => a.week < b.week ? -1 : 1);
     const tb = document.querySelector('#journal-table tbody'); clear(tb);
     rows.slice().reverse().forEach(r => {
       const tr = document.createElement('tr'); tr.dataset.key = r.week;
@@ -348,7 +366,7 @@ dash.onData(() => {
       const c = document.createElement('td'); c.textContent = r.note || '';
       tr.append(a, b, c); tb.appendChild(tr);
     });
-  } else if (W.status === 'error') failed(dc); else clear(dc);
+  }
 
   const D = dash.data('debts'), bars = document.getElementById('debt-bars');
   if (D.status === 'ok') {
@@ -392,7 +410,7 @@ dash.onData(() => {
 </div></div>
 <script>
 (function () {
-  const DATA = {"weeks":[{"week":"2026-10-25","n":1,"money":7,"work":8,"health":6,"relations":8,"mood":7,"debt":822224,"income":null,"done":"Собран план до конца 2027. Получена кредитная история. Поставлен самозапрет на кредиты. МатКвест каждый день. Уроки на неделю поездки перенесены, ноябрь без потерь.","note":"Ничего не просрочено. Платежи 26.10 собраны заранее. Оценки: деньги 7 (доход более чем, надо раскидаться), работа 8, отношения 8 (будет выше, когда смогу вкладываться), настроение боевое 7. Здоровье 6: всё нормально, но нет средств на качественный отдых — надежда на Дагестан."}],"debts":[{"group":"Личные долги","detail":"друзья и семья; остался один долг","start":55000,"left":15000,"order":1},{"group":"С решением суда","detail":"4 микрозайма","start":78308,"left":78308,"order":2},{"group":"Кредиты по графику","detail":"4 кредита, платятся вовремя","start":439665,"left":439665,"order":3},{"group":"Просрочки без суда","detail":"банк и коллекторы","start":249251,"left":249251,"order":4}],"tasks":[{"id":"2026-10-26-1","week":"2026-10-26","area":"Деньги","task":"Вернуть 20 000 другу и внести платёж 26-го, вернуть 20 000 маме до конца недели","status":"сделано"},{"id":"2026-10-26-2","week":"2026-10-26","area":"МатКвест","task":"Описать финишную черту 31.12 и разложить по неделям","status":"в работе"},{"id":"2026-10-26-3","week":"2026-10-26","area":"Защита","task":"Настроить автоплатежи и сверить долги у приставов","status":"в работе"}]};
+  const DATA = {"weeks":[{"week":"2026-10-25","n":1,"money":7,"work":8,"health":6,"relations":8,"mood":7,"debt":822224,"income":null,"done":"Собран план до конца 2027. Получена кредитная история. Поставлен самозапрет на кредиты. МатКвест каждый день. Уроки на неделю поездки перенесены, ноябрь без потерь.","note":"Ничего не просрочено. Платежи 26.10 собраны заранее. Оценки: деньги 7 (доход более чем, надо раскидаться), работа 8, отношения 8 (будет выше, когда смогу вкладываться), настроение боевое 7. Здоровье 6: всё нормально, но нет средств на качественный отдых — надежда на Дагестан."}],"debts":[{"group":"Личные долги","detail":"друзья и семья; остался один долг","start":55000,"left":15000,"order":1,"asof":"2026-10-30"},{"group":"С решением суда","detail":"4 микрозайма","start":78308,"left":78308,"order":2,"asof":"2026-10-30"},{"group":"Кредиты по графику","detail":"4 кредита, платятся вовремя","start":439665,"left":439665,"order":3,"asof":"2026-10-30"},{"group":"Просрочки без суда","detail":"банк и коллекторы","start":249251,"left":249251,"order":4,"asof":"2026-10-30"}],"tasks":[{"id":"2026-10-26-1","week":"2026-10-26","area":"Деньги","task":"Вернуть 20 000 другу и внести платёж 26-го, вернуть 20 000 маме до конца недели","status":"сделано"},{"id":"2026-10-26-2","week":"2026-10-26","area":"МатКвест","task":"Описать финишную черту 31.12 и разложить по неделям","status":"в работе"},{"id":"2026-10-26-3","week":"2026-10-26","area":"Защита","task":"Настроить автоплатежи и сверить долги у приставов","status":"в работе"}]};
   dash.run(DATA);
   let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(() => dash._fns.forEach(f => f()), 150); });
 })();
